@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СмешТВ — круглосуточный мульт-канал</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  :root {
+    --bg: #0b0e18; --panel: #141a2c; --panel2: #1a2138; --border: #2a3352;
+    --text: #e8ecf7; --muted: #8a93b2; --accent: #FF5E4E; --accent2: #FFB347; --green: #39e75f;
+    --grad: linear-gradient(90deg, #FF5E4E, #FFB347);
+  }
+  body {
+    background: radial-gradient(1200px 600px at 70% -10%, #1c2444 0%, var(--bg) 55%);
+    color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh;
+  }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 0 20px 60px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0 18px; flex-wrap: wrap; }
+  .header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .live-clock { text-align: right; }
+  .live-clock .time { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+  .live-clock .date { color: var(--muted); font-size: 13px; }
+  .live-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(57,231,95,.12); border: 1px solid rgba(57,231,95,.45); color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: 2px; padding: 6px 12px; border-radius: 999px; }
+  .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(57,231,95,.6);} 50% { opacity:.6; box-shadow:0 0 0 6px rgba(57,231,95,0);} }
+
+  /* Переключатель версий и аудиодорожек */
+  .version-switcher { display: flex; gap: 8px; background: var(--panel); border: 1px solid var(--border); padding: 4px; border-radius: 14px; }
+  .v-btn { background: transparent; border: none; color: var(--muted); padding: 8px 14px; font-size: 13px; font-weight: 700; border-radius: 10px; cursor: pointer; transition: .15s; }
+  .v-btn.active { background: var(--grad); color: #1a0d05; box-shadow: 0 4px 12px rgba(255,94,78,.3); }
+
+  .audio-tracks { display: flex; gap: 6px; background: var(--panel2); border: 1px solid var(--border); padding: 4px; border-radius: 12px; margin-top: 6px; display: none; }
+  .audio-tracks.visible { display: flex; }
+  .a-btn { background: transparent; border: none; color: var(--muted); padding: 6px 10px; font-size: 12px; font-weight: 700; border-radius: 8px; cursor: pointer; transition: .15s; }
+  .a-btn.active { background: var(--border); color: var(--text); }
+
+  .tv { background: linear-gradient(160deg, var(--panel2), var(--panel)); border: 1px solid var(--border); border-radius: 26px; padding: 14px; box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+  .screen { position: relative; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16/9; width: 100%; }
+  
+  .screen-guard { position: absolute; inset: 0; z-index: 5; background: transparent; pointer-events: auto; }
+  .video-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  .video-container iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  .live-watermark { position: absolute; inset: 0; z-index: 2; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+  .live-watermark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+  .off-air { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #000; z-index: 10; text-align: center; pointer-events: auto; }
+  .off-air img { width: 100%; height: 100%; object-fit: contain; display: block; position: absolute; inset: 0; z-index: 1; }
+  .off-air-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: rgba(5,7,14,0.75); width: 100%; height: 100%; backdrop-filter: blur(4px); padding: 20px; }
+  .off-air .txt { color: #fff; font-size: 16px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+  
+  .power-btn { background: var(--grad); color: #1a0d05; border: none; font-weight: 800; font-size: 18px; padding: 16px 36px; border-radius: 999px; cursor: pointer; box-shadow: 0 8px 26px rgba(255,94,78,.5); transition: transform .15s; pointer-events: auto; }
+  .power-btn:hover { transform: translateY(-2px); }
+  
+  .tv-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 6px 4px; gap: 12px; flex-wrap: wrap; }
+  .controls button { background: var(--panel); color: var(--text); border: 1px solid var(--border); width: 44px; height: 44px; border-radius: 12px; font-size: 18px; cursor: pointer; transition: .15s; }
+  .controls button:hover { border-color: var(--accent); color: var(--accent2); }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 18px 20px; margin-top: 18px; }
+  .card h2 { font-size: 15px; letter-spacing: 2.5px; color: var(--muted); font-weight: 700; margin-bottom: 12px; }
+  .now-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+  .progress { height: 10px; background: #0d1122; border-radius: 999px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--grad); border-radius: 999px; width: 0%; transition: width 1s linear; }
+  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+
+  .next-item { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(42,51,82,.6); font-size: 15px; }
+  .next-item:last-child { border-bottom: none; }
+  .next-item .when { color: var(--accent2); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding-top: 26px; }
+  @media (max-width: 640px) { .live-clock .time { font-size: 22px; } }
+</style>
+</head>
+<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
+<div class="wrap">
+  <header>
+    <div class="header-left">
+      <span class="live-badge"><span class="live-dot"></span>В ЭФИРЕ</span>
+      <div class="version-switcher">
+        <button class="v-btn active" id="btn-main" onclick="switchVersion('main')">Основной</button>
+        <button class="v-btn" id="btn-int" onclick="switchVersion('int')">International</button>
+      </div>
+    </div>
+    <div class="live-clock"><div class="time" id="clock">--:--</div><div class="date" id="date"></div></div>
+  </header>
+
+  <!-- Дополнительная панель выбора дорожек для INT версии -->
+  <div class="audio-tracks" id="audio-tracks-bar">
+    <button class="a-btn active" id="track-ru" onclick="switchAudioTrack('ru')">🇷🇺 Русская дорожка</button>
+    <button class="a-btn" id="track-en" onclick="switchAudioTrack('en')">🇬🇧 English track</button>
+  </div>
+
+  <div class="tv">
+    <div class="screen">
+      <div class="screen-guard" id="screen-guard"></div>
+      
+      <div class="live-watermark">
+        <img id="watermark-logo-img" alt="СмешТВ">
+      </div>
+
+      <div class="video-container">
+        <div id="player"></div>
+      </div>
+      
+      <div class="off-air" id="unmute-overlay">
+        <img id="fullscreen-logo-img" alt="СмешТВ">
+        <div class="off-air-content">
+          <div class="txt" id="overlay-text">Эфир идёт круглосуточно</div>
+          <button class="power-btn" id="power-btn-text" onclick="startTV()">▶ Включить эфир</button>
+        </div>
+      </div>
+    </div>
+    <div class="tv-bar">
+      <div style="font-size:13px;color:var(--muted);" id="channel-brand">СмешТВ</div>
+      <div class="controls">
+        <button onclick="toggleMute()" id="mute-btn" title="Звук">🔊</button>
+        <button onclick="fullscreen()" title="Полный экран">⛶</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>СЕЙЧАС В ЭФИРЕ</h2>
+    <div class="now-title" id="now-title">Загрузка программы…</div>
+    <div class="progress"><div id="prog"></div></div>
+    <div class="times"><span id="elapsed">00:00</span><span id="remain">осталось --:--</span></div>
+  </div>
+
+  <div class="card">
+    <h2>ДАЛЕЕ В ЭФИРЕ</h2>
+    <div id="next-list"></div>
+  </div>
+
+  <footer id="footer-text">СмешТВ · прямой эфир</footer>
+</div>
+
+<script>
+if (window.self !== window.top) {
+  window.top.location = window.self.location;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (
+    e.keyCode === 123 || 
+    (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || 
+    (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83 || e.keyCode === 80))
+  ) {
+    e.preventDefault();
+    return false;
+  }
+});
+
+// База расписаний для разных версий
+const SCHEDULES = {
+  main: [
+    { id: 'ZZgJ0QhOe44', duration: 3670, title: 'Смешарики. Часть 1' },
+    { id: 'c8Zy62mdYfA', duration: 3673, title: 'Смешарики. Часть 2' },
+    { id: 'thaqccB0Duk', duration: 3660, title: 'Смешарики. Часть 3' },
+    { id: 'bnpKzdPuPqQ', duration: 3649, title: 'Смешарики. Часть 4' },
+    { id: 'hTA3CewckcI', duration: 3652, title: 'Смешарики. Часть 5' },
+    { id: 'Sh-3gT0KPKo', duration: 3653, title: 'Смешарики. Часть 6' },
+    { id: 'baSCMw-2qt8', duration: 3651, title: 'Смешарики. Часть 7' },
+    { id: 'rXtaU_yitlQ', duration: 3657, title: 'Смешарики. Часть 8' },
+    { id: 'LilMEk7sV7I', duration: 3641, title: 'Смешарики. Часть 9' },
+    { id: 'r7FdLk6D33U', duration: 3666, title: 'Смешарики. Часть 10' },
+    { id: 'pOWbR8Lt2Fk', duration: 3659, title: 'Смешарики. Часть 11' },
+    { id: 'b0WgAMA82sE', duration: 3661, title: 'Смешарики. Часть 12' },
+    { id: 'Nt0xnw022i8', duration: 3664, title: 'Смешарики. Часть 13' },
+    { id: 'i3J6i3xM32Y', duration: 3663, title: 'Смешарики. Часть 14' },
+    { id: 'N0mnyfrz_Kc', duration: 4043, title: 'Смешарики. Часть 15' },
+    { id: 'Z96u0zQ1NcY', duration: 3654, title: 'Смешарики. Часть 16' },
+    { id: 'QED0t7sm8Fs', duration: 3675, title: 'Смешарики. Часть 17' },
+    { id: 'O6jZrq60wVw', duration: 3655, title: 'Смешарики. Часть 18' },
+    { id: 'VFm3ngb3KDw', duration: 3662, title: 'Смешарики. Часть 19' },
+    { id: 'QIauHSawzog', duration: 3670, title: 'Смешарики. Часть 20' },
+    { id: 'kBKonWmRAjc', duration: 4749, title: 'Смешарики. Часть 21' },
+    { id: 'rEbSRebPl3c', duration: 2216, title: 'Смешарики Новый сезон. Часть 1' },
+    { id: 'SjVLjlzTD1I', duration: 2205, title: 'Смешарики Новый сезон. Часть 2' },
+    { id: '4jPFiWxEcsU', duration: 2207, title: 'Смешарики Новый сезон. Часть 3' },
+    { id: 'HxIN8bdK6MI', duration: 2201, title: 'Смешарики Новый сезон. Часть 4' },
+    { id: 'aYwyJoatNjI', duration: 2241, title: 'Смешарики Новый сезон. Часть 5' },
+    { id: 'Qf9MTm7oMuo', duration: 2374, title: 'Смешарики Новый сезон. Часть 6' },
+    { id: 'PrbRDdP_3xw', duration: 2385, title: 'Смешарики Новый сезон. Часть 7' },
+    { id: 'wtuZsM8AaB0', duration: 2399, title: 'Смешарики Новый сезон. Часть 8' },
+    { id: 'XvIpzwUh218', duration: 2003, title: 'Смешарики Новый сезон. Часть 9' },
+    { id: 'GmMmHxCRXLo', duration: 2384, title: 'Смешарики Новый сезон. Часть 10' },
+    { id: 'pxeoZzd_Hqw', duration: 2394, title: 'Смешарики Новый сезон. Часть 11' },
+    { id: '8bfaNcERQBY', duration: 2394, title: 'Смешарики Новый сезон. Часть 12' },
+    { id: '9fVKFXAU2TM', duration: 2396, title: 'Смешарики Новый сезон. Часть 13' },
+    { id: 'b7n0erMVXz0', duration: 2434, title: 'Смешарики Новый сезон. Часть 14' },
+    { id: 'RCSja3_8gno', duration: 2396, title: 'Смешарики Новый сезон. Часть 15' },
+    { id: 'TAT4hpacgnc', duration: 2397, title: 'Смешарики Новый сезон. Часть 16' },
+    { id: 'Gxp4YOh3dSo', duration: 1596, title: 'Смешарики Новый сезон. Часть 17' },
+    { id: 'Nlr5f_IyHs4', duration: 2611, title: 'Смешарики Новый сезон. Часть 18' },
+    { id: 'P-q48fSvZdM', duration: 2578, title: 'Смешарики Новый сезон. Часть 19' },
+    { id: 'gs-MZg77o6w', duration: 6222, title: 'Смешарики снимают кино. Полнометражный фильм' },
+    { id: 'nOK0h7-5Hu0', duration: 3126, title: 'Фиксики. Часть 1' },
+    { id: 'dpiauz0DRio', duration: 4269, title: 'Фиксики. Часть 2' },
+    { id: 'aKOqDGHN6zw', duration: 3175, title: 'Фиксики. Часть 3' },
+    { id: 'p0CRUaxSzos', duration: 3181, title: 'Фиксики. Часть 4' },
+    { id: '-NfxQCAEuQ0', duration: 3175, title: 'Фиксики. Часть 5' },
+    { id: 'ymSwedLlQag', duration: 3651, title: 'Фиксики. Часть 6' },
+    { id: 'u5jjVvEvED8', duration: 3645, title: 'Фиксики. Часть 7' },
+    { id: 'mludCeHwp6M', duration: 3634, title: 'Фиксики. Часть 8' },
+    { id: 'JidMrZfwS6E', duration: 3650, title: 'Фиксики. Часть 9' },
+    { id: 'LEFAnvb0A2Y', duration: 3613, title: 'Фиксики. Часть 10' },
+    { id: 'iKToH5nt82Y', duration: 3630, title: 'Фиксики. Часть 11' },
+    { id: '2sZoMT7ASdE', duration: 3664, title: 'Фиксики. Часть 12' },
+    { id: '9666mtwGYd0', duration: 3646, title: 'Фиксики. Часть 13' },
+    { id: 'wXNeGMG2PeQ', duration: 3601, title: 'Фиксики. Часть 14' },
+    { id: '6tlME_HgGcc', duration: 3634, title: 'Фиксики. Часть 15' },
+    { id: 'BTXiIcC8t1s', duration: 3640, title: 'Фиксики. Часть 16' },
+    { id: 'NgS5Y3Z6L5Y', duration: 3780, title: 'Фиксики. Часть 17' },
+    { id: 'kk7gYDVXhwU', duration: 3767, title: 'Фиксики. Часть 18' },
+    { id: '01KgLgevgYo', duration: 3743, title: 'Фиксики. Часть 19' },
+    { id: 'XsQkIu9lsMs', duration: 3724, title: 'Фиксики. Часть 20' },
+    { id: 'Wa_s7wWdvio', duration: 3724, title: 'Фиксики. Часть 21' },
+    { id: 'NtGWRWtlDcY', duration: 3694, title: 'Фиксики. Часть 22' },
+    { id: 'weHtYO8T038', duration: 4281, title: 'Фиксики. Часть 23' },
+    { id: 'Ym4DOQynP-4', duration: 4290, title: 'Фиксики. Часть 24' },
+    { id: 'LiF6VClY8EU', duration: 4278, title: 'Фиксики. Часть 25' },
+    { id: '7pNe4f6xjsM', duration: 4273, title: 'Фиксики. Часть 26' },
+    { id: 'vdmnIIQdn8E', duration: 4012, title: 'Фиксики. Часть 27' },
+    { id: 'iVRbH_-Bdvo', duration: 4186, title: 'Барбоскины. Часть 1' },
+    { id: '_ZO5VEEWdX4', duration: 4180, title: 'Барбоскины. Часть 2' },
+    { id: 'ngdtGvLISOk', duration: 4238, title: 'Барбоскины. Часть 3' },
+    { id: 'LBTqMuXNam4', duration: 4213, title: 'Барбоскины. Часть 4' },
+    { id: 'PWrHBxn-Ero', duration: 4200, title: 'Барбоскины. Часть 5' },
+    { id: '9CDdPPlsUkk', duration: 4205, title: 'Барбоскины. Часть 6' },
+    { id: 'BGl3stSRuZU', duration: 4264, title: 'Барбоскины. Часть 7' },
+    { id: '3PFMy0KUqOc', duration: 4235, title: 'Барбоскины. Часть 8' },
+    { id: 'eg_rlPU5nU0', duration: 4136, title: 'Барбоскины. Часть 9' },
+    { id: 'gtS9ljoTxPk', duration: 2215, title: 'Барбоскины. Часть 10' },
+    { id: 'yslXg3Fig9I', duration: 2223, title: 'Барбоскины. Часть 11' },
+    { id: '_IoxEwUfDiY', duration: 1964, title: 'Барбоскины. Часть 12' },
+    { id: '470QBDC99X0', duration: 2257, title: 'Барбоскины. Часть 13' },
+    { id: 'yc0D8cQc8tU', duration: 2263, title: 'Барбоскины. Часть 14' },
+    { id: 'HYuqWJsikYA', duration: 2241, title: 'Барбоскины. Часть 15' },
+    { id: 'Ce8ypKo6bE4', duration: 2226, title: 'Барбоскины. Часть 16' },
+    { id: 'dhIl9KiMrTI', duration: 2225, title: 'Барбоскины. Часть 17' },
+    { id: '2UpeA74wnoE', duration: 2215, title: 'Барбоскины. Часть 18' },
+    { id: 'uriXIjs5U18', duration: 2507, title: 'Маша и Медведь. Часть 1' },
+    { id: 'ocsOiR_zlHc', duration: 2041, title: 'Маша и Медведь. Часть 2' },
+    { id: 'F4iyIpEEp6k', duration: 1657, title: 'Маша и Медведь. Часть 3' },
+    { id: 'f2ZHGXfc1Yg', duration: 2064, title: 'Маша и Медведь. Часть 4' },
+    { id: '7guS5DH4l7w', duration: 2074, title: 'Маша и Медведь. Часть 5' },
+    { id: 'T5gSuIP618g', duration: 2492, title: 'Маша и Медведь. Часть 6' },
+    { id: '93xuP93UOng', duration: 2082, title: 'Маша и Медведь. Часть 7' },
+    { id: 'zJT0LvxPbqw', duration: 2071, title: 'Маша и Медведь. Часть 8' },
+    { id: 'MYbFnk9mEZo', duration: 2133, title: 'Маша и Медведь. Часть 9' },
+    { id: '_2yU3dWzGd8', duration: 2019, title: 'Маша и Медведь. Часть 10' },
+    { id: 'SGvYHxaFrSU', duration: 2114, title: 'Маша и Медведь. Часть 11' },
+    { id: '8chxDXbhKEM', duration: 2102, title: 'Маша и Медведь. Часть 12' },
+    { id: 'fFZrDWsgf5Y', duration: 2168, title: 'Маша и Медведь. Часть 13' },
+    { id: 'xqz808j0GKw', duration: 2180, title: 'Маша и Медведь. Часть 14' },
+    { id: 'Q3Pfmtil-G0', duration: 2204, title: 'Маша и Медведь. Часть 15' }
+  ],
+  int: [
+    { id: '-W2tJmIJltg', duration: 390, title: 'Смешарики (1 серия) Скамейка', track: 'ru' },
+    { id: 'LAisXiVwJqM', duration: 390, title: 'Kikoriki (Episode 1) The bench', track: 'en' },
+    { id: '-rL8u4Y6holg', duration: 390, title: 'Смешарики (2 серия) Принц для Нюши', track: 'ru' },
+    { id: '8dQKVcIEx8k', duration: 390, title: 'Kikoriki (Episode 2) A prince for Rosa', track: 'en' }
+  ]
+};
+
+// Текущая выбранная версия и аудиодорожка для INT
+let currentVersion = 'main';
+let currentAudioTrack = 'ru'; // 'ru' или 'en' для INT
+
+let SCHEDULE = SCHEDULES.main;
+let TOTAL_DURATION = SCHEDULE.reduce((a, x) => a + x.duration, 0);
+
+var player = null, muted = false, currentIdx = -1, cycleOffset = 0;
+
+// Логотипы
+const DRIVE_ID_MAIN = '18xKX_FMnfQc555BHX40EppWZshSq0wK1';
+const DRIVE_ID_INT = '165GNzoFaaqjAd6f-NDtH7g1w8ZXph_7O';
+
+function getLogoUrl(driveId) {
+  return 'https://lh3.googleusercontent.com/d/' + driveId;
+}
+
+function updateLogos() {
+  const driveId = (currentVersion === 'int') ? DRIVE_ID_INT : DRIVE_ID_MAIN;
+  const url = getLogoUrl(driveId);
+  
+  const img1 = document.getElementById('fullscreen-logo-img');
+  const img2 = document.getElementById('watermark-logo-img');
+  if(img1) img1.src = url;
+  if(img2) img2.src = url;
+}
+
+function switchVersion(ver) {
+  currentVersion = ver;
+  
+  document.getElementById('btn-main').classList.toggle('active', ver === 'main');
+  document.getElementById('btn-int').classList.toggle('active', ver === 'int');
+  
+  const audioBar = document.getElementById('audio-tracks-bar');
+  audioBar.classList.toggle('visible', ver === 'int');
+
+  document.getElementById('channel-brand').innerText = (ver === 'int') ? 'SmeshTV International' : 'СмешТВ';
+  document.getElementById('footer-text').innerText = (ver === 'int') ? 'SmeshTV International · Live' : 'СмешТВ · прямой эфир';
+  document.getElementById('overlay-text').innerText = (ver === 'int') ? 'International Broadcast 24/7' : 'Эфир идёт круглосуточно';
+  document.getElementById('power-btn-text').innerText = (ver === 'int') ? '▶ Play Stream' : '▶ Включить эфир';
+
+  updateLogos();
+  reloadSchedule();
+}
+
+function switchAudioTrack(track) {
+  currentAudioTrack = track;
+  document.getElementById('track-ru').classList.toggle('active', track === 'ru');
+  document.getElementById('track-en').classList.toggle('active', track === 'en');
+  reloadSchedule();
+}
+
+function reloadSchedule() {
+  if (currentVersion === 'main') {
+    SCHEDULE = SCHEDULES.main;
+  } else {
+    SCHEDULE = SCHEDULES.int.filter(item => item.track === currentAudioTrack);
+    if (SCHEDULE.length === 0) SCHEDULE = SCHEDULES.int;
+  }
+  
+  TOTAL_DURATION = SCHEDULE.reduce((a, x) => a + x.duration, 0);
+  currentIdx = -1; // Принудительно сбрасываем, чтобы updateLive() зафиксировал смену сетки
+  
+  const pos = currentPosition();
+  if (player && player.loadVideoById) {
+    player.loadVideoById({ videoId: SCHEDULE[pos.idx].id, startSeconds: pos.start });
+  }
+}
+
+function fmt(s) {
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0');
+}
+
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+function onYouTubeIframeAPIReady() {
+  updateLogos();
+  const pos = currentPosition();
+  try {
+    player = new YT.Player('player', {
+      videoId: SCHEDULE[pos.idx].id,
+      playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'fs': 0, 'rel': 0, 'start': Math.floor(pos.start) },
+      events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange, 'onError': onPlayerError }
+    });
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function onPlayerError(event) {
+  const pos = currentPosition();
+  currentIdx = (pos.idx + 1) % SCHEDULE.length;
+  const nextItem = SCHEDULE[currentIdx];
+  if(player && player.loadVideoById) {
+    player.loadVideoById({ videoId: nextItem.id, startSeconds: 0 });
+  }
+}
+
+function totalSecondsSinceEpoch() {
+  const baseDate = new Date(2026, 0, 1, 0, 0, 0);
+  return Math.floor((Date.now() - baseDate.getTime()) / 1000);
+}
+
+function currentPosition() {
+  let t = (totalSecondsSinceEpoch() + cycleOffset) % TOTAL_DURATION;
+  if (t < 0) t += TOTAL_DURATION;
+  return findAt(t);
+}
+
+function findAt(t) {
+  let acc = 0;
+  for (let i = 0; i < SCHEDULE.length; i++) {
+    if (t < acc + SCHEDULE[i].duration) return { idx: i, start: t - acc, offset: t };
+    acc += SCHEDULE[i].duration;
+  }
+  return { idx: 0, start: 0, offset: 0 };
+}
+
+function onPlayerReady(event) {
+  event.target.mute();
+  event.target.playVideo();
+  setInterval(updateLive, 1000);
+}
+
+function startTV() {
+  if (player && player.unMute) {
+    player.unMute();
+    player.setVolume(100);
+    muted = false;
+    document.getElementById('mute-btn').innerText = '🔊';
+  }
+  const overlay = document.getElementById('unmute-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  fullscreen();
+}
+
+function toggleMute() {
+  if (!player) return;
+  if (muted) {
+    player.unMute();
+    muted = false;
+    document.getElementById('mute-btn').innerText = '🔊';
+  } else {
+    player.mute();
+    muted = true;
+    document.getElementById('mute-btn').innerText = '🔇';
+  }
+}
+
+function fullscreen() {
+  const screenEl = document.querySelector('.screen');
+  if (screenEl.requestFullscreen) {
+    screenEl.requestFullscreen();
+  } else if (screenEl.webkitRequestFullscreen) {
+    screenEl.webkitRequestFullscreen();
+  } else if (screenEl.msRequestFullscreen) {
+    screenEl.msRequestFullscreen();
+  }
+}
+
+function onPlayerStateChange(event) {
+  if (event.data === YT.PlayerState.ENDED) {
+    const pos = currentPosition();
+    if (player && player.loadVideoById) {
+      player.loadVideoById({ videoId: SCHEDULE[pos.idx].id, startSeconds: pos.start });
+    }
+  }
+}
+
+function updateLive() {
+  const now = new Date();
+  document.getElementById('clock').innerText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('date').innerText = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+  const pos = currentPosition();
+  const item = SCHEDULE[pos.idx];
+
+  // Применяем обновление, если индекс поменялся или сменилась дорожка (currentIdx сброшен в -1)
+  if (currentIdx !== pos.idx) {
+    currentIdx = pos.idx;
+    if (player && player.getVideoUrl && !player.getVideoUrl().includes(item.id)) {
+      player.loadVideoById({ videoId: item.id, startSeconds: pos.start });
+    }
+    document.getElementById('now-title').innerText = item.title;
+    renderNextList(pos.idx);
+  }
+
+  const curTime = player && player.getCurrentTime ? player.getCurrentTime() : pos.start;
+  const elapsed = curTime;
+  const remain = item.duration - curTime;
+  const pct = Math.min(100, Math.max(0, (elapsed / item.duration) * 100));
+
+  document.getElementById('prog').style.width = pct + '%';
+  document.getElementById('elapsed').innerText = fmt(elapsed);
+  document.getElementById('remain').innerText = 'осталось ' + fmt(remain);
+}
+
+function renderNextList(idx) {
+  let html = '';
+  for (let i = 1; i <= 3; i++) {
+    const nextIdx = (idx + i) % SCHEDULE.length;
+    const nextItem = SCHEDULE[nextIdx];
+    let calcTime = 0;
+    for (let j = 0; j < i; j++) {
+      const targetIdx = (idx + j) % SCHEDULE.length;
+      calcTime += (j === 0 ? (SCHEDULE[targetIdx].duration - (player && player.getCurrentTime ? player.getCurrentTime() : 0)) : SCHEDULE[targetIdx].duration);
+    }
+    const targetDate = new Date(Date.now() + calcTime * 1000);
+    const timeStr = String(targetDate.getHours()).padStart(2, '0') + ':' + String(targetDate.getMinutes()).padStart(2, '0');
+    html += `<div class="next-item"><span class="title">${nextItem.title}</span><span class="when">~${timeStr}</span></div>`;
+  }
+  document.getElementById('next-list').innerHTML = html;
+}
+</script>
+</body>
+</html>
