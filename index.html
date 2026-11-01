@@ -152,7 +152,7 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// База расписаний для разных версий (исправлена структура INT)
+// База расписаний для разных версий
 const SCHEDULES = {
   main: [
     { id: 'ZZgJ0QhOe44', duration: 3670, title: 'Смешарики. Часть 1' },
@@ -267,7 +267,7 @@ const SCHEDULES = {
     { id: 'oC27Mz_0r2A', duration: 390, title: 'Фанерное солнце - Смешарики 2D |Мультфильмы для детей', track: 'ru' },
     { id: 'NXQ5gZs4KDw', duration: 390, title: 'The Plywood Sun - KikoRiki | Cartoon for Kids', track: 'en' },
     { id: '2s2pM5aAfBc', duration: 390, title: 'Энергия храпа - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
-    { id: 'RbhLEoNQ5jE', duration: 388, title: 'The Energy of Snoring - KikoRiki | Cartoon for Kids', track: 'en' },
+    { id: 'RbhLEoNQ5jE', duration: 390, title: 'The Energy of Snoring - KikoRiki | Cartoon for Kids', track: 'en' },
     { id: 'odbwz_86Xvg', duration: 390, title: 'Железная няня - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
     { id: 'Wwj_Np2krWE', duration: 390, title: 'The Iron Nanny - KikoRiki | Cartoon for Kids', track: 'en' },
     { id: 'Rc84ZglMJVY', duration: 390, title: 'Подарок судьбы - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
@@ -428,8 +428,8 @@ const SCHEDULES = {
     { id: 'sA8lBLGWahw', duration: 390, title: 'Add Snow, Subtract a Fir Tree - KikoRiki | Cartoon for Kids', track: 'en' },
     { id: 'i-9FtF6ToPg', duration: 390, title: 'Её звали Нюша - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
     { id: 'fJ6jnnpS7KU', duration: 390, title: 'Her Name Was Rosa - KikoRiki | Cartoon for Kids', track: 'en' },
-    { id: 'dVYKNtI4UOA', duration: 396, title: 'Ежик в Туманности - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
-    { id: 'O5By5mMZ92I', duration: 396, title: 'Chiko in the Fog - KikoRiki | Cartoon for Kids', track: 'en' },
+    { id: 'dVYKNtI4UOA', duration: 390, title: 'Ежик в Туманности - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
+    { id: 'O5By5mMZ92I', duration: 390, title: 'Chiko in the Fog - KikoRiki | Cartoon for Kids', track: 'en' },
     { id: 'KI7ytiGgeLs', duration: 390, title: 'Взаперти - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
     { id: 'XkrmRWVCfok', duration: 390, title: 'Locked Up - KikoRiki | Cartoon for Kids', track: 'en' },
     { id: '4ubFiAp3vLw', duration: 390, title: 'Линии судьбы - Смешарики 2D | Мультфильмы для детей', track: 'ru' },
@@ -555,7 +555,6 @@ function onYouTubeIframeAPIReady() {
   }
 }
 
-// Защита от бесконечного зацикливания ошибок
 let errorCount = 0;
 function onPlayerError(event) {
   errorCount++;
@@ -653,6 +652,7 @@ function updateLive() {
   const pos = currentPosition();
   const item = SCHEDULE[pos.idx];
 
+  // Применяем обновление, если индекс поменялся или сменилась дорожка (currentIdx сброшен в -1)
   if (currentIdx !== pos.idx) {
     currentIdx = pos.idx;
     if (player && player.getVideoUrl && !player.getVideoUrl().includes(item.id)) {
